@@ -1,0 +1,209 @@
+<head>
+	<meta charset="utf-8">
+	<title>贪吃蛇</title>
+</head>
+<body>
+	<h2>方向键控制，ESC暂停游戏</h2>
+	<span id="pause" style="color:red"></span>
+	<span id="score"></span>分<br />
+	<canvas id="canvas" style="border:1px solid black"></canvas>
+</body>
+
+<script>
+(function(width,height){
+	var _ = {
+		score:0,
+		width:width,
+		height:height,
+		canvas:null,
+		canvasBufferElement:null,
+		canvasBuffer:null,
+		head:null,
+		directionBuffer:"left",
+		direction:"left",
+		fruits:[],
+		pause:false,
+		init:function(){
+			//canvas 
+			var canvasElement=document.getElementById("canvas");
+			canvas.style.width=this.width;
+			canvas.style.height=this.height;
+			canvas.width=this.width;
+			canvas.height=this.height;
+
+			this.canvas= canvasElement.getContext("2d");
+			this.canvasBufferElement=document.createElement("canvas");
+			this.canvasBufferElement.width=this.width;
+			this.canvasBufferElement.height=this.height;
+			this.canvasBuffer=this.canvasBufferElement.getContext("2d");
+			//snake:
+			this.head=new Snake(150,110,null,null);
+			var p2 = new Snake(170,110,this.head,null);
+			this.head.next=p2;
+			var p3 = new Snake(190,110,p2,null);
+			p2.next=p3; 
+			//control:
+
+			document.onkeydown=function(event){
+				var key=event.keyCode;
+				if(37==key && _.direction!="right") _.directionBuffer="left";
+				if(38==key && _.direction!="down") _.directionBuffer="up";
+				if(39==key && _.direction!="left") _.directionBuffer="right";
+				if(40==key && _.direction!="up") _.directionBuffer="down";
+				if(27==key)  _.pause=!_.pause;
+			}
+		},
+		draw:function(){ 
+			var paint=this.canvasBuffer;
+			//=======
+			if(this.pause){ 
+				//pauseSpan.innerHTML="已暂停";
+			}else{
+				//pauseSpan.innerHTML="";
+				//wall:
+				paint.fillStyle="gray";
+				for(i=10;i<this.height;i+=20){ 
+					for(j=10;j<this.width;j+=20){ 
+						if(10==j || i==10 || j==(this.width-10) || i==(this.height-10)){ 
+							paint.fillRect(j-10,i-10,j+10,i+10);
+						}
+					}
+				}
+
+				//snake
+				var p = this.head;
+				paint.fillStyle="green";
+				while( p!=null ){ 
+					paint.beginPath();
+					paint.arc(p.scale.x,p.scale.y,10,0,Math.PI*2,true);
+					paint.closePath();
+					paint.fill();
+					p=p.next;
+					paint.fillStyle="blue";
+				}
+				//fruits:
+				paint.fillStyle="yellow";
+				if(this.fruits.length>0){ 
+					for(i=0;i<this.fruits.length;i++){
+						paint.beginPath();
+						paint.arc(this.fruits[i].scale.x,this.fruits[i].scale.y,10,0,Math.PI*2,true);
+						paint.closePath();
+						paint.fill();
+					}
+				}
+			}
+
+			//======
+			this.canvas.clearRect(0,0,this.width,this.height);
+			this.canvas.drawImage(this.canvasBufferElement,0,0);
+			paint.clearRect(0,0,this.width,this.height);
+
+					
+		},
+		move:function(){
+			while(_.fruits.length<3)  new Fruit().create();
+			var eaten=false;
+			var scoreSpan=document.getElementById("score");
+			scoreSpan.innerHTML=this.score;
+			for(i=0;i<this.fruits.length;i++){ 
+				if(this.head.scale.x==this.fruits[i].scale.x 
+					&& this.head.scale.y==this.fruits[i].scale.y){ 
+					this.fruits.splice(i,1);
+					eaten=true;
+					this.score++;
+				}
+			}
+			//去尾：
+				if(!eaten){
+				var p = this.head;
+				do{ 
+					p=p.next;
+				}while(p.next!=null);
+				p.pre.next=null;
+				p=null;
+			}
+			//添头
+			var x = this.head.scale.x;
+			var y = this.head.scale.y;
+			this.direction=this.directionBuffer;
+			if("left"==this.direction)	x-=20;
+			if("up"==this.direction) 	y-=20;
+			if("right"==this.direction) x+=20;
+			if("down"==this.direction)  y+=20;
+			this.head.pre=new Snake(x,y,null,this.head);
+			this.head=this.head.pre;
+		},
+		conflict:function(){ 
+			var x=this.head.scale.x;
+			var y = this.head.scale.y;
+			if(x<=10 || y<=10 || x>=this.width-10 || y>=this.height-10){
+				return 1;
+			}
+			var p =this.head;
+			while((p=p.next)!=null){ 
+				if(this.head.scale.x==p.scale.x && this.head.scale.y==p.scale.y){ 
+					return 2;
+				}
+			}
+			return 0;
+		},
+		over:function(){ 
+			//处理游戏结束之后的事情
+		}
+	}
+
+	function Snake(x,y,pre,next){ 
+		this.scale={x:x,y:y};
+		this.pre=pre;
+		this.next=next;
+	}
+
+	function Fruit(){ 
+		this.scale={x:0,y:0};
+		function avaliable(x,y){
+			//fruit:
+			if(_.fruits.length>0){ 
+				for(i=0;i<_.fruits.length;i++){ 
+					if(x==_.fruits[i].scale.x && y==_.fruits[i].scale.y){ 
+						return false;
+					}
+				}
+			} 
+			//snake:
+			var p = _.head;
+			while(p!=null){ 
+				if(p.scale.x==x && p.scale.y==y) return false;
+				p=p.next;
+			}
+			return true;
+		}
+		this.create=function(){ 
+			do{ 
+				var x= Math.floor(Math.random()*((_.width/20)-2))*20+30;
+				var y= Math.floor(Math.random()*((_.height/20)-2))*20+30;
+			}while(!avaliable(x,y));
+			this.scale.x=x;
+			this.scale.y=y;
+			_.fruits.push(this);
+		}
+	}
+	_.init();
+	var interval=setInterval(function(){ 
+		//console.log("interval"+_.pause);
+		var pauseSpan=document.getElementById("pause");
+		if(_.pause){ 
+			pauseSpan.innerHTML="已暂停";
+			return;
+		}else pauseSpan.innerHTML="";
+		_.move();
+		_.draw();
+		var conf=_.conflict();
+		if(conf>0){ 
+			if(1==conf)alert("你撞墙了");
+			if(2==conf)alert("你咬到了自己");
+			_.over();
+			clearInterval(interval);
+		}
+	},300);
+})(640,480);
+</script>
